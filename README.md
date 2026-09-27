@@ -93,6 +93,16 @@ Then revisit <http://127.0.0.1:8000/clinician>. To stop the server, click the Te
 - **`Address already in use`:** Another process is using port 8000. Start the app on another port with `python -m uvicorn server:app --host 127.0.0.1 --port 8001`, then open <http://127.0.0.1:8001/clinician>.
 - **Uvicorn does not start:** Activate the `kiwikare` Conda environment and install the requirements with `python -m pip install -r requirements.txt`.
 
+## Deploy an open demo on Render
+
+The repository includes a Render Blueprint in `render.yaml`.
+
+1. In Render, choose **New > Blueprint** and connect `rosytiger/kiwikare`.
+2. Review and apply the service described by `render.yaml`.
+3. After deployment, share the service URL with `/clinician` appended. Visitors can use the demo in a browser without installing or running the code.
+
+Use fictional details only. The public demo has no clinician login and is not intended for real patient or personal information. Do not configure live SMS credentials for a public demo. On Render's free service, local SQLite data, saved manuals, and generated links may be lost when the service restarts or redeploys.
+
 ## Configuration and optional services
 
 Set `BASE_URL` before starting the server if patient links should use a public endpoint. If unset, links use the host and port receiving the request.
