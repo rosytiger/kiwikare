@@ -446,5 +446,5 @@ def render_instruction_content(row):
                 })();
             </script>
     """
-    body_html = read_aloud_html + "<div id='patient-report'>" + report_html + "</div>"
+    body_html = "<div id='patient-report'>" + report_html + "</div>" + read_aloud_html
     return HTMLResponse(patient_page(manual["title"], "", body_html, row["expires_at"]))
