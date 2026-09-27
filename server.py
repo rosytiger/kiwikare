@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, Request, HTTPException, Form
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -240,6 +240,10 @@ class CreateInstructionPayload(BaseModel):
     patient_dob: Optional[str] = ""
 
 # ---------- Endpoints ----------
+@app.get("/", include_in_schema=False)
+def home():
+    return RedirectResponse(url="/clinician")
+
 @app.get("/clinician", response_class=FileResponse)
 def clinician_portal():
     path = PORTAL_STATIC_DIR / "clinician_portal.html"
