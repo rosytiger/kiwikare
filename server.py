@@ -79,7 +79,8 @@ def ensure_tables():
             failed_attempts INTEGER DEFAULT 0,
             locked_until TEXT DEFAULT NULL,
             patient_name TEXT DEFAULT '',
-            patient_dob TEXT DEFAULT ''
+            patient_dob TEXT DEFAULT '',
+            tts_url TEXT DEFAULT ''
         )
         """
     )
@@ -97,6 +98,11 @@ def ensure_instruction_columns():
     if "patient_dob" not in cols:
         try:
             conn.execute("ALTER TABLE instructions ADD COLUMN patient_dob TEXT DEFAULT ''")
+        except Exception:
+            pass
+    if "tts_url" not in cols:
+        try:
+            conn.execute("ALTER TABLE instructions ADD COLUMN tts_url TEXT DEFAULT ''")
         except Exception:
             pass
     conn.commit()
@@ -179,6 +185,14 @@ def elevenlabs_tts(text: str, voice_id: Optional[str] = None, filename: Optional
     except Exception as e:
         print("ElevenLabs TTS request failed:", e)
         return None
+
+def generate_audio_summary(sections: list) -> Optional[str]:
+    if not ELEVENLABS_KEY or requests is None:
+        return None
+    summary_text = " ".join(str(section.get("content", "")) for section in sections[:5]).strip()
+    if not summary_text:
+        return None
+    return elevenlabs_tts(summary_text)
 
 # ---------- SMS (demo) ----------
 def send_sms(phone: str, message: str):
@@ -322,16 +336,17 @@ async def share_manual(request: Request):
     token = generate_token()
     pin = generate_pin()
     pin_hash = hash_pin(pin)
+    tts_url = generate_audio_summary(sections)
     instruction_id = secrets.token_hex(8)
     created_at = dt.datetime.utcnow().isoformat()
     expires_at = (dt.datetime.utcnow() + dt.timedelta(days=DEFAULT_EXPIRES_DAYS)).isoformat()
 
     conn.execute(
         """
-        INSERT INTO instructions (id, token, manual_id, clinic_text, phone, pin_hash, created_at, expires_at, patient_name, patient_dob)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO instructions (id, token, manual_id, clinic_text, phone, pin_hash, created_at, expires_at, patient_name, patient_dob, tts_url)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (instruction_id, token, manual_id, clinic_text, phone, pin_hash, created_at, expires_at, patient_name, patient_dob)
+        (instruction_id, token, manual_id, clinic_text, phone, pin_hash, created_at, expires_at, patient_name, patient_dob, tts_url or "")
     )
     conn.commit()
 
@@ -339,14 +354,6 @@ async def share_manual(request: Request):
 
     sms_text = f"KiwiKare: Your care instructions for {patient_name or 'the patient'} are ready. Open {link}. Use PIN: {pin}. Expires in {DEFAULT_EXPIRES_DAYS} days."
     send_sms(phone, sms_text)
-
-    # Optionally build TTS for patient summary (not automatic — expensive). Return None if not available.
-    tts_url = None
-    try:
-        summary_text = " ".join([s.get("content", "") for s in sections[:5]])
-        tts_url = elevenlabs_tts(summary_text) if ELEVENLABS_KEY and requests else None
-    except Exception:
-        tts_url = None
 
     return {
         "manual_id": manual_id,
@@ -369,19 +376,20 @@ def create_instruction(payload: CreateInstructionPayload, request: Request):
     expires_at = created_at + dt.timedelta(days=payload.expires_days)
     pin = generate_pin() if payload.require_pin else None
     pin_hash = hash_pin(pin) if pin else None
+    tts_url = generate_audio_summary(manual.get("sections", []))
     conn.execute(
         """
-        INSERT INTO instructions (id, token, manual_id, clinic_text, phone, pin_hash, created_at, expires_at, patient_name, patient_dob)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO instructions (id, token, manual_id, clinic_text, phone, pin_hash, created_at, expires_at, patient_name, patient_dob, tts_url)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (instruction_id, token, payload.manual_id, payload.clinic_text, payload.phone.strip(), pin_hash, created_at.isoformat(), expires_at.isoformat(), payload.patient_name or "", payload.patient_dob or "")
+        (instruction_id, token, payload.manual_id, payload.clinic_text, payload.phone.strip(), pin_hash, created_at.isoformat(), expires_at.isoformat(), payload.patient_name or "", payload.patient_dob or "", tts_url or "")
     )
     conn.commit()
     link = instruction_link(request, token)
     send_sms(payload.phone, f"KiwiKare: Your care instructions are ready. Open {link}.")
     if pin:
         send_sms(payload.phone, f"KiwiKare: Your access PIN is {pin}.")
-    return {"id": instruction_id, "link": link, "pin_for_clinician": pin}
+    return {"id": instruction_id, "link": link, "pin_for_clinician": pin, "tts_url": tts_url}
 
 @app.get("/instructions/{token}", response_class=HTMLResponse)
 def instruction_page(token: str):
@@ -432,5 +440,10 @@ def render_instruction_content(row):
     header_html = ""
     if row["patient_name"] or row["patient_dob"]:
         header_html = f"<div style='margin-bottom:12px;padding:10px;border-radius:8px;border:1px solid #eee'><strong>Patient:</strong> {html.escape(row['patient_name'] or '')} &nbsp; <strong>DOB:</strong> {html.escape(row['patient_dob'] or '')}</div>"
-    body_html = header_html + "<h2 style='margin-top:0'>" + html.escape(manual["title"]) + "</h2>" + render_patient_sections(manual, row["clinic_text"] or "")
+    tts_url = row["tts_url"] if "tts_url" in row.keys() else ""
+    audio_html = ""
+    if tts_url:
+        audio_src = html.escape(tts_url, quote=True)
+        audio_html = f"<section style='margin:12px 0;padding:12px;border-radius:8px;background:#EDF7FF;border:1px solid #D9EEE5'><h3 style='margin-top:0'>Listen to your care summary</h3><audio controls preload='none' style='width:100%' src='{audio_src}'>Audio playback is not supported by this browser.</audio></section>"
+    body_html = header_html + "<h2 style='margin-top:0'>" + html.escape(manual["title"]) + "</h2>" + audio_html + render_patient_sections(manual, row["clinic_text"] or "")
     return HTMLResponse(patient_page(manual["title"], "", body_html, row["expires_at"]))

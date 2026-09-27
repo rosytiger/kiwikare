@@ -10,7 +10,7 @@ KiwiKare is a clinician portal demo for creating post-procedure care instruction
 - Save care plans as JSON manuals in `static/manuals/`.
 - Generate patient links that expire after 14 days and require a six-digit PIN.
 - Generate patient links and PINs; the demo prints the simulated SMS message in the server terminal. Twilio was not used.
-- Optionally generate audio summaries with ElevenLabs text-to-speech.
+- Optionally generate ElevenLabs audio summaries that patients can play from their PIN-protected instruction page.
 
 ## Run the project on macOS
 
@@ -117,6 +117,8 @@ Set `BASE_URL` before starting the server if patient links should use a public e
 
 SMS is simulated in this demo: the message and PIN are printed in the server terminal, not sent to a phone. For PIN hashing, install `bcrypt` with `python -m pip install bcrypt`; without it, this demo falls back to storing PINs without secure hashing. ElevenLabs support uses `requests`, which is included in `requirements.txt`.
 
+To enable patient audio, add `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE` in the Render service's **Environment** settings, then redeploy. Keep the API key in Render's secret environment settings; never add it to the code or commit it to GitHub. When a clinician generates a share link, the app creates an audio summary and shows a player on the patient page after the PIN is entered. Audio generation requires an active ElevenLabs account and may incur usage charges.
+
 ## Project structure
 
 ```text
@@ -134,6 +136,10 @@ The SQLite database (`kiwikare_demo.db`) is created in the project folder when t
 ## Demo safety
 
 This project is a demonstration, not a production clinical system. Do not enter real patient information. The demo has no clinician authentication, stores patient details in a local SQLite database, and does not implement production-grade security, privacy, or compliance controls. Review and clinically validate all instructions before use. Configure secure PIN hashing and delivery before testing with anything beyond fictional data.
+
+## AI Assistance
+
+GitHub Copilot was used as a programming assistant to investigate, implement, and document updates to the FastAPI service and portal. This included share-link behavior, the care-instruction preview, patient-side ElevenLabs audio playback, and Render deployment setup. Copilot did not validate clinical guidance; qualified clinicians should review all patient-facing instructions before use.
 
 ## License
 
