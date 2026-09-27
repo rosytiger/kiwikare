@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>KiwiKare — Clinician Portal</title>
+  <style>
+    :root{
+      --brand:#1F6FC4; --brand-2:#4A9AE3; --bg:#F4FAF7; --card:#FFFFFF; --text:#0F2B2A;
+      --muted:#576B6A; --line:#D9EEE5; --pill:#EDF7FF; --shadow: rgba(23,107,85,0.08);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,system-ui}
+    .header{background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center}
+    .brand{font-size:20px;font-weight:800}
+    .brand-sub{color:rgba(255,255,255,0.9);font-size:13px}
+    .logo {width:72px;height:72px;object-fit:contain;background:transparent;border:0;display:block}
+    .container{max-width:1180px;margin:18px auto;padding:0 18px}
+    .layout{display:grid;grid-template-columns:360px 1fr 320px;gap:18px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:0 8px 24px var(--shadow)}
+    label{display:block;margin-top:10px;margin-bottom:6px;color:var(--brand);font-weight:700}
+    input,select,textarea,button{font:inherit}
+    input,select,textarea{width:100%;padding:10px;border-radius:10px;border:1px solid #cfe8dc;background:white}
+    textarea{min-height:90px;resize:vertical}
+    .pill-row{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+    .pill{background:var(--pill);color:var(--brand);border-radius:8px;padding:8px 10px;border:1px solid #dfeeff;cursor:pointer;font-weight:700;font-size:13px}
+    .btn{border-radius:10px;padding:12px 14px;font-weight:800;cursor:pointer;border:0}
+    .btn-primary{background:var(--brand);color:#fff}
+    .btn-secondary{background:#fff;border:2px solid var(--brand);color:var(--brand)}
+    .section-header{font-weight:800;color:var(--brand);margin-top:6px;margin-bottom:6px}
+    .muted{color:var(--muted);font-size:13px}
+    .status{min-height:22px;margin-top:10px;color:var(--brand);font-weight:800}
+    .preview-box{background:#F4FAFF;border:1px solid #dfeeff;border-radius:10px;padding:10px;margin-top:8px}
+    .preview-card{display:flex;gap:12px;align-items:flex-start;padding:10px;border-radius:10px;background:#fff;border:1px solid var(--line);margin-top:8px}
+    .icon{width:44px;height:44px;border-radius:10px;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px}
+    @media (max-width:980px){.layout{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div>
+      <div class="brand">KiwiKare</div>
+      <div class="brand-sub">V Clinician Portal</div>
+    </div>
+    <img src="/static/kiwi_logo_transparent.png?v=2" alt="KiwiKare logo" class="logo" onerror="this.style.display='none'">
+  </header>
+
+  <main class="container">
+    <div class="layout">
+
+      <aside class="card">
+        <div class="section-header">Patient & Procedure</div>
+
+        <label>Patient name</label>
+        <input id="patientName" placeholder="Jane Doe" />
+
+        <label>DOB</label>
+        <input id="patientDob" placeholder="YYYY-MM-DD" />
+
+        <label>Patient phone</label>
+        <input id="patientPhone" placeholder="+15551234567" />
+
+        <label>Procedure</label>
+        <select id="surgeryType">
+          <option value="">-- choose --</option>
+          <option value="appendectomy">Appendectomy</option>
+          <option value="chole">Cholecystectomy</option>
+          <option value="hernia">Hernia repair</option>
+          <option value="knee">Knee surgery</option>
+          <option value="hip">Hip surgery</option>
+          <option value="csection">C-section</option>
+          <option value="tonsil">Tonsillectomy</option>
+        </select>
+
+        <label>Brief surgery summary</label>
+        <textarea id="summaryText" placeholder="What was done and what patient should expect"></textarea>
+
+        <label>Provider note</label>
+        <textarea id="providerNote" placeholder="Optional note for the patient"></textarea>
+
+        <div style="margin-top:12px">
+          <button id="generateBtn" class="btn btn-primary" type="button">Generate Visual Care Card</button>
+        </div>
+        <div id="status" class="status"></div>
+      </aside>
+
+      <section class="card">
+        <div class="section-header">Care instructions</div>
+        <div class="muted">Use quick-fill chips or type instructions manually.</div>
+
+        <label>Diet</label>
+        <div class="pill-row">
+          <button class="pill" data-target="diet_liquid" type="button">Liquid</button>
+          <button class="pill" data-target="diet_soft" type="button">Soft</button>
+          <button class="pill" data-target="diet_regular" type="button">Regular</button>
+          <button class="pill" data-target="diet_npo" type="button">NPO</button>
+        </div>
+        <textarea id="dietText" placeholder="Diet instructions"></textarea>
+
+        <label>Wound care</label>
+        <div class="pill-row">
+          <button class="pill" data-target="wound_standard" type="button">Standard</button>
+          <button class="pill" data-target="wound_strip" type="button">Steri-strips</button>
+          <button class="pill" data-target="wound_shower" type="button">Shower OK</button>
+        </div>
+        <textarea id="woundText" placeholder="Wound instructions"></textarea>
+
+        <label>Medication</label>
+        <div class="pill-row">
+          <button class="pill" data-target="meds_pain" type="button">Pain meds</button>
+          <button class="pill" data-target="meds_abx" type="button">Antibiotic</button>
+          <button class="pill" data-target="meds_nausea" type="button">Nausea</button>
+        </div>
+        <textarea id="medsText" placeholder="Medication instructions"></textarea>
+
+        <label>Activity</label>
+        <textarea id="activityText" placeholder="Activity restrictions and guidance"></textarea>
+
+        <label>Warnings / when to call</label>
+        <div class="pill-row">
+          <button class="pill" data-target="warn_fever" type="button">Fever</button>
+          <button class="pill" data-target="warn_bleed" type="button">Bleeding</button>
+          <button class="pill" data-target="warn_breath" type="button">Breathing</button>
+        </div>
+        <textarea id="warningsText" placeholder="Warning signs"></textarea>
+
+        <label>Follow-up</label>
+        <textarea id="followupText" placeholder="Follow-up plan"></textarea>
+
+        <div style="margin-top:12px;display:flex;gap:8px">
+          <button id="saveBtn" class="btn btn-secondary" type="button">Save manual</button>
+        </div>
+      </section>
+
+      <aside class="card">
+        <div class="section-header">Patient preview</div>
+        <div class="preview-box">
+          <div class="preview-card">
+            <div class="icon">👤</div>
+            <div>
+              <div style="font-weight:800" id="prePatient">Patient: —</div>
+              <div class="muted" id="preDob">DOB: —</div>
+            </div>
+          </div>
+          <div class="preview-card">
+            <div class="icon">🩺</div>
+            <div>
+              <div style="font-weight:800">Surgery summary</div>
+              <div class="muted" id="preSummary">Brief summary will appear here.</div>
+            </div>
+          </div>
+          <div class="preview-card">
+            <div class="icon">🥤</div>
+            <div>
+              <div style="font-weight:800">Diet</div>
+              <div class="muted" id="preDiet">Diet instructions appear here.</div>
+            </div>
+          </div>
+          <div class="preview-card">
+            <div class="icon">🩹</div>
+            <div>
+              <div style="font-weight:800">Wound care</div>
+              <div class="muted" id="preWound">Wound care appears here.</div>
+            </div>
+          </div>
+          <div class="preview-card">
+            <div class="icon">⚠️</div>
+            <div>
+              <div style="font-weight:800">Warnings</div>
+              <div class="muted" id="preWarnings">When to call appears here.</div>
+            </div>
+          </div>
+          <div style="margin-top:14px;text-align:center;font-size:12px;color:var(--muted)">
+            <img src="/static/kiwi_logo_transparent.png?v=2" alt="Kiwi" style="width:72px;height:auto;display:block;margin:8px auto" onerror="this.style.display='none'">
+            <div>Powered by KiwiKare</div>
+          </div>
+        </div>
+      </aside>
+
+    </div>
+  </main>
+
+  <script>
+    const QUICK = {
+      diet_liquid: "Clear liquids for 24 hours. Sip slowly; stop if nauseous.",
+      diet_soft: "Soft foods for 3–7 days: mashed potatoes, yogurt, eggs.",
+      diet_regular: "Return to regular diet as tolerated; small meals initially.",
+      diet_npo: "NPO until instructed. Only take essential medicines if approved.",
+      wound_standard: "Keep incision clean and dry. Avoid soaking until cleared.",
+      wound_strip: "Leave Steri-Strips in place; do not pick.",
+      wound_shower: "Shower after 48 hours; pat dry and avoid direct spray.",
+      meds_pain: "Take pain medication as prescribed. Avoid driving if sedated.",
+      meds_abx: "Take antibiotic as prescribed until finished.",
+      meds_nausea: "Take anti-nausea medicine as prescribed.",
+      warn_fever: "Call if temp >100.4°F or increasing redness.",
+      warn_bleed: "Seek urgent care for heavy bleeding or faintness.",
+      warn_breath: "Seek emergency care for trouble breathing or chest pain."
+    };
+
+    const TEMPLATES = {
+      appendectomy: {
+        summaryText: "Laparoscopic appendectomy performed. Expect soreness for a few days.",
+        dietText: "Clear liquids for 24 hours; then soft diet as tolerated.",
+        woundText: "Keep incision clean and dry. No baths until cleared.",
+        medsText: "Take pain medication as prescribed. Finish antibiotics if directed.",
+        warningsText: "Call for fever, increasing redness, or worsening pain.",
+        followupText: "Follow-up in 7–14 days."
+      },
+      chole: {
+        summaryText: "Gallbladder removed laparoscopically. Mild discomfort expected.",
+        dietText: "Start with clear liquids; low-fat foods for 24–48 hours.",
+        woundText: "Keep incisions dry. Watch for drainage.",
+        medsText: "Pain medication as directed.",
+        warningsText: "Call for fever, jaundice, or severe pain.",
+        followupText: "Follow-up as directed."
+      }
+    };
+
+    function updatePreview(){
+      document.getElementById('prePatient').textContent = 'Patient: ' + (document.getElementById('patientName').value.trim() || '—');
+      document.getElementById('preDob').textContent = 'DOB: ' + (document.getElementById('patientDob').value.trim() || '—');
+      document.getElementById('preSummary').textContent = document.getElementById('summaryText').value.trim() || '—';
+      document.getElementById('preDiet').textContent = document.getElementById('dietText').value.trim() || '—';
+      document.getElementById('preWound').textContent = document.getElementById('woundText').value.trim() || '—';
+      document.getElementById('preWarnings').textContent = document.getElementById('warningsText').value.trim() || '—';
+    }
+
+    document.getElementById('surgeryType').addEventListener('change', function(){
+      const tpl = TEMPLATES[this.value];
+      if(!tpl) return;
+      document.getElementById('summaryText').value = tpl.summaryText || '';
+      document.getElementById('dietText').value = tpl.dietText || '';
+      document.getElementById('woundText').value = tpl.woundText || '';
+      document.getElementById('medsText').value = tpl.medsText || '';
+      document.getElementById('warningsText').value = tpl.warningsText || '';
+      document.getElementById('followupText').value = tpl.followupText || '';
+      updatePreview();
+    });
+
+    document.querySelectorAll('.pill').forEach(p => p.addEventListener('click', function(){
+      const target = this.dataset.target;
+      const val = QUICK[target];
+      if (!val) return;
+      if(target.startsWith('diet')) document.getElementById('dietText').value = val;
+      if(target.startsWith('wound')) document.getElementById('woundText').value = val;
+      if(target.startsWith('meds')) document.getElementById('medsText').value = val;
+      if(target.startsWith('warn')) document.getElementById('warningsText').value = val;
+      updatePreview();
+    }));
+
+    ['patientName','patientDob','summaryText','dietText','woundText','medsText','warningsText'].forEach(id=>{
+      const el = document.getElementById(id);
+      if(el) el.addEventListener('input', updatePreview);
+    });
+
+    async function saveManual(){
+      const title = document.getElementById('surgeryType').value || 'Care plan';
+      const entries = [
+        {id:'summary', title:'Surgery summary', content: document.getElementById('summaryText').value.trim()},
+        {id:'diet', title:'Diet', content: document.getElementById('dietText').value.trim()},
+        {id:'wound', title:'Wound care', content: document.getElementById('woundText').value.trim()},
+        {id:'meds', title:'Medication', content: document.getElementById('medsText').value.trim()},
+        {id:'activity', title:'Activity', content: document.getElementById('activityText').value.trim()},
+        {id:'warnings', title:'Warning signs', content: document.getElementById('warningsText').value.trim()},
+        {id:'followup', title:'Follow-up', content: document.getElementById('followupText').value.trim()}
+      ].filter(e => e.content);
+
+      if (!entries.length) {
+        document.getElementById('status').textContent = 'Please add at least one instruction.';
+        return null;
+      }
+
+      const fd = new FormData();
+      fd.append('manual', JSON.stringify({ title, sections: entries }));
+      const res = await fetch('/api/manuals/create', {method:'POST', body:fd});
+      const json = await res.json();
+      if(!res.ok){ document.getElementById('status').textContent = json.detail || 'Save failed.'; return null; }
+      return json.manual;
+    }
+
+    async function generateCard(){
+      const manual = await saveManual();
+      if(!manual) return;
+
+      const patientName = document.getElementById('patientName').value.trim();
+      const patientDob = document.getElementById('patientDob').value.trim();
+      const patientPhone = document.getElementById('patientPhone').value.trim();
+      const clinicText = document.getElementById('providerNote').value.trim();
+
+      if(!patientPhone){
+        document.getElementById('status').textContent = 'Enter patient phone before generating.';
+        return;
+      }
+
+      document.getElementById('status').textContent = 'Generating...';
+
+      const res = await fetch('/api/share', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          manual_id: manual.id,
+          title: manual.title,
+          sections: manual.sections,
+          patient_name: patientName,
+          patient_dob: patientDob,
+          phone: patientPhone,
+          clinic_text: clinicText
+        })
+      });
+
+      const json = await res.json();
+      if(!res.ok){
+        document.getElementById('status').textContent = json.detail || 'Could not generate share link.';
+        return;
+      }
+
+      document.getElementById('status').innerHTML =
+        `Generated. Share link: <a href="${json.link}" target="_blank">${json.link}</a> | PIN: ${json.pin_for_clinician}`;
+    }
+
+    document.getElementById('generateBtn').addEventListener('click', generateCard);
+    document.getElementById('saveBtn').addEventListener('click', async ()=>{
+      const m = await saveManual();
+      if(m) document.getElementById('status').textContent = 'Saved: ' + m.title;
+    });
+
+    updatePreview();
+  </script>
+</body>
+</html>
