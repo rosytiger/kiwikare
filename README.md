@@ -1,5 +1,9 @@
 # KiwiKare
 
+<p align="center">
+   <img src="static/kiwi_logo_transparent.png" alt="KiwiKare logo" width="160">
+</p>
+
 KiwiKare is a clinician portal demo for creating post-procedure care instructions and sharing them with patients through expiring, PIN-protected links.
 
 ## Features
