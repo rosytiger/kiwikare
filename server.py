@@ -12,12 +12,6 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-# Optional imports
-try:
-    import requests
-except Exception:
-    requests = None
-
 try:
     import bcrypt
 except Exception:
@@ -28,10 +22,8 @@ BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 PORTAL_STATIC_DIR = STATIC_DIR
 MANUALS_DIR = STATIC_DIR / "manuals"
-UPLOADS_DIR = STATIC_DIR / "uploads"
-TTS_DIR = UPLOADS_DIR / "tts"
 
-for d in (STATIC_DIR, MANUALS_DIR, UPLOADS_DIR, TTS_DIR):
+for d in (STATIC_DIR, MANUALS_DIR):
     d.mkdir(parents=True, exist_ok=True)
 
 # Set BASE_URL when links should use a public endpoint; otherwise use the request host.
@@ -45,10 +37,6 @@ def instruction_link(request: Request, token: str) -> str:
 TWILIO_SID = os.getenv("TWILIO_ACCOUNT_SID")
 TWILIO_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
 TWILIO_FROM = os.getenv("TWILIO_FROM")
-
-# ElevenLabs (optional)
-ELEVENLABS_KEY = os.getenv("ELEVENLABS_API_KEY")
-ELEVEN_VOICE = os.getenv("ELEVENLABS_VOICE")  # optional voice id
 
 PIN_LENGTH = 6
 DEFAULT_EXPIRES_DAYS = 14
@@ -79,8 +67,7 @@ def ensure_tables():
             failed_attempts INTEGER DEFAULT 0,
             locked_until TEXT DEFAULT NULL,
             patient_name TEXT DEFAULT '',
-            patient_dob TEXT DEFAULT '',
-            tts_url TEXT DEFAULT ''
+            patient_dob TEXT DEFAULT ''
         )
         """
     )
@@ -98,11 +85,6 @@ def ensure_instruction_columns():
     if "patient_dob" not in cols:
         try:
             conn.execute("ALTER TABLE instructions ADD COLUMN patient_dob TEXT DEFAULT ''")
-        except Exception:
-            pass
-    if "tts_url" not in cols:
-        try:
-            conn.execute("ALTER TABLE instructions ADD COLUMN tts_url TEXT DEFAULT ''")
         except Exception:
             pass
     conn.commit()
@@ -160,40 +142,6 @@ def verify_pin(pin: str, stored_hash: Optional[str]) -> bool:
             return False
     return pin == stored_hash
 
-# ---------- TTS helper (optional) ----------
-def elevenlabs_tts(text: str, voice_id: Optional[str] = None, filename: Optional[str] = None) -> Optional[str]:
-    if not ELEVENLABS_KEY or requests is None:
-        return None
-    if not voice_id and not ELEVEN_VOICE:
-        return None
-    voice = voice_id or ELEVEN_VOICE
-    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice}"
-    headers = {"xi-api-key": ELEVENLABS_KEY, "Content-Type": "application/json"}
-    payload = {"text": text}
-    try:
-        r = requests.post(url, headers=headers, json=payload, stream=True, timeout=30)
-        if r.status_code != 200:
-            print("ElevenLabs error:", r.status_code, r.text)
-            return None
-        fname = filename or f"tts-{secrets.token_hex(8)}.mp3"
-        path = TTS_DIR / fname
-        with path.open("wb") as fh:
-            for chunk in r.iter_content(8192):
-                if chunk:
-                    fh.write(chunk)
-        return f"/static/uploads/tts/{fname}"
-    except Exception as e:
-        print("ElevenLabs TTS request failed:", e)
-        return None
-
-def generate_audio_summary(sections: list) -> Optional[str]:
-    if not ELEVENLABS_KEY or requests is None:
-        return None
-    summary_text = " ".join(str(section.get("content", "")) for section in sections[:5]).strip()
-    if not summary_text:
-        return None
-    return elevenlabs_tts(summary_text)
-
 # ---------- SMS (demo) ----------
 def send_sms(phone: str, message: str):
     # If Twilio credentials aren't set, print SMS to terminal (safe demo mode)
@@ -237,6 +185,12 @@ def patient_page(title: str, header_html: str, body_html: str, expires_at: Optio
       .card{{background:#fff;padding:18px;border-radius:12px;border:1px solid #D9EEE5;margin-top:12px}}
       .footer{{margin-top:18px;text-align:center;color:#576B6A;font-size:13px}}
       .logo{{height:36px;width:auto;display:inline-block}}
+    .read-aloud{{margin:12px 0;padding:12px;border-radius:8px;background:#EDF7FF;border:1px solid #D9EEE5}}
+    .read-aloud h2{{margin:0 0 10px;font-size:18px}}
+    .read-aloud button{{margin-right:8px;padding:8px 12px;border:1px solid #1F6FC4;border-radius:6px;background:#fff;color:#1F6FC4;font:inherit;cursor:pointer}}
+    .read-aloud button:first-of-type{{background:#1F6FC4;color:#fff}}
+    .read-aloud button:disabled{{opacity:.55;cursor:not-allowed}}
+    .read-status{{min-height:1.2em;margin:8px 0 0;font-size:13px}}
     </style>
     </head><body><main class="page"><header class="header"><h1 style="margin:0">{html.escape(title)}</h1></header>
     <div class="card">{header_html}{body_html}{exp_html}</div>
@@ -336,17 +290,16 @@ async def share_manual(request: Request):
     token = generate_token()
     pin = generate_pin()
     pin_hash = hash_pin(pin)
-    tts_url = generate_audio_summary(sections)
     instruction_id = secrets.token_hex(8)
     created_at = dt.datetime.utcnow().isoformat()
     expires_at = (dt.datetime.utcnow() + dt.timedelta(days=DEFAULT_EXPIRES_DAYS)).isoformat()
 
     conn.execute(
         """
-        INSERT INTO instructions (id, token, manual_id, clinic_text, phone, pin_hash, created_at, expires_at, patient_name, patient_dob, tts_url)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO instructions (id, token, manual_id, clinic_text, phone, pin_hash, created_at, expires_at, patient_name, patient_dob)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (instruction_id, token, manual_id, clinic_text, phone, pin_hash, created_at, expires_at, patient_name, patient_dob, tts_url or "")
+        (instruction_id, token, manual_id, clinic_text, phone, pin_hash, created_at, expires_at, patient_name, patient_dob)
     )
     conn.commit()
 
@@ -361,8 +314,7 @@ async def share_manual(request: Request):
         "token": token,
         "pin_for_clinician": pin,
         "patient_name": patient_name,
-        "patient_dob": patient_dob,
-        "tts_url": tts_url
+        "patient_dob": patient_dob
     }
 
 @app.post("/api/instructions/create")
@@ -376,20 +328,19 @@ def create_instruction(payload: CreateInstructionPayload, request: Request):
     expires_at = created_at + dt.timedelta(days=payload.expires_days)
     pin = generate_pin() if payload.require_pin else None
     pin_hash = hash_pin(pin) if pin else None
-    tts_url = generate_audio_summary(manual.get("sections", []))
     conn.execute(
         """
-        INSERT INTO instructions (id, token, manual_id, clinic_text, phone, pin_hash, created_at, expires_at, patient_name, patient_dob, tts_url)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO instructions (id, token, manual_id, clinic_text, phone, pin_hash, created_at, expires_at, patient_name, patient_dob)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (instruction_id, token, payload.manual_id, payload.clinic_text, payload.phone.strip(), pin_hash, created_at.isoformat(), expires_at.isoformat(), payload.patient_name or "", payload.patient_dob or "", tts_url or "")
+        (instruction_id, token, payload.manual_id, payload.clinic_text, payload.phone.strip(), pin_hash, created_at.isoformat(), expires_at.isoformat(), payload.patient_name or "", payload.patient_dob or "")
     )
     conn.commit()
     link = instruction_link(request, token)
     send_sms(payload.phone, f"KiwiKare: Your care instructions are ready. Open {link}.")
     if pin:
         send_sms(payload.phone, f"KiwiKare: Your access PIN is {pin}.")
-    return {"id": instruction_id, "link": link, "pin_for_clinician": pin, "tts_url": tts_url}
+    return {"id": instruction_id, "link": link, "pin_for_clinician": pin}
 
 @app.get("/instructions/{token}", response_class=HTMLResponse)
 def instruction_page(token: str):
@@ -440,10 +391,60 @@ def render_instruction_content(row):
     header_html = ""
     if row["patient_name"] or row["patient_dob"]:
         header_html = f"<div style='margin-bottom:12px;padding:10px;border-radius:8px;border:1px solid #eee'><strong>Patient:</strong> {html.escape(row['patient_name'] or '')} &nbsp; <strong>DOB:</strong> {html.escape(row['patient_dob'] or '')}</div>"
-    tts_url = row["tts_url"] if "tts_url" in row.keys() else ""
-    audio_html = ""
-    if tts_url:
-        audio_src = html.escape(tts_url, quote=True)
-        audio_html = f"<section style='margin:12px 0;padding:12px;border-radius:8px;background:#EDF7FF;border:1px solid #D9EEE5'><h3 style='margin-top:0'>Listen to your care summary</h3><audio controls preload='none' style='width:100%' src='{audio_src}'>Audio playback is not supported by this browser.</audio></section>"
-    body_html = header_html + "<h2 style='margin-top:0'>" + html.escape(manual["title"]) + "</h2>" + audio_html + render_patient_sections(manual, row["clinic_text"] or "")
+    report_html = header_html + "<h2 style='margin-top:0'>" + html.escape(manual["title"]) + "</h2>" + render_patient_sections(manual, row["clinic_text"] or "")
+    read_aloud_html = """
+            <section class="read-aloud" aria-label="Read patient instructions aloud">
+                <h2>Listen to your instructions</h2>
+                <button id="read-aloud-button" type="button">Read aloud</button>
+                <button id="stop-reading-button" type="button" disabled>Stop</button>
+                <p id="read-status" class="read-status" role="status" aria-live="polite"></p>
+            </section>
+            <script>
+                (() => {
+                    const report = document.getElementById("patient-report");
+                    const readButton = document.getElementById("read-aloud-button");
+                    const stopButton = document.getElementById("stop-reading-button");
+                    const status = document.getElementById("read-status");
+                    const speech = window.speechSynthesis;
+
+                    if (!speech || !window.SpeechSynthesisUtterance) {
+                        readButton.disabled = true;
+                        status.textContent = "Read-aloud is not supported by this browser.";
+                        return;
+                    }
+
+                    let canceled = false;
+                    readButton.addEventListener("click", () => {
+                        speech.cancel();
+                        canceled = false;
+                        const utterance = new SpeechSynthesisUtterance(report.innerText.trim());
+                        utterance.lang = "en-US";
+                        utterance.onstart = () => {
+                            status.textContent = "Reading...";
+                            stopButton.disabled = false;
+                        };
+                        utterance.onend = () => {
+                            status.textContent = "";
+                            stopButton.disabled = true;
+                        };
+                        utterance.onerror = () => {
+                            if (!canceled) status.textContent = "Could not read the instructions aloud.";
+                            stopButton.disabled = true;
+                        };
+                        stopButton.disabled = false;
+                        speech.speak(utterance);
+                    });
+
+                    stopButton.addEventListener("click", () => {
+                        canceled = true;
+                        speech.cancel();
+                        stopButton.disabled = true;
+                        status.textContent = "Reading stopped.";
+                    });
+
+                    window.addEventListener("pagehide", () => speech.cancel());
+                })();
+            </script>
+    """
+    body_html = read_aloud_html + "<div id='patient-report'>" + report_html + "</div>"
     return HTMLResponse(patient_page(manual["title"], "", body_html, row["expires_at"]))

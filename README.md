@@ -10,7 +10,7 @@ KiwiKare is a clinician portal demo for creating post-procedure care instruction
 - Save care plans as JSON manuals in `static/manuals/`.
 - Generate patient links that expire after 14 days and require a six-digit PIN.
 - Generate patient links and PINs; the demo prints the simulated SMS message in the server terminal. Twilio was not used.
-- Optionally generate ElevenLabs audio summaries that patients can play from their PIN-protected instruction page.
+- Let patients read their PIN-protected instructions aloud using the voice available on their device.
 
 ## Run the project on macOS
 
@@ -112,12 +112,9 @@ Set `BASE_URL` before starting the server if patient links should use a public e
 | Variable | Purpose |
 | --- | --- |
 | `BASE_URL` | Optional public base URL used to create patient links. Defaults to the host and port receiving the request. |
-| `ELEVENLABS_API_KEY` | Enables optional text-to-speech summaries. |
-| `ELEVENLABS_VOICE` | ElevenLabs voice ID for text-to-speech. |
+SMS is simulated in this demo: the message and PIN are printed in the server terminal, not sent to a phone. For PIN hashing, install `bcrypt` with `python -m pip install bcrypt`; without it, this demo falls back to storing PINs without secure hashing.
 
-SMS is simulated in this demo: the message and PIN are printed in the server terminal, not sent to a phone. For PIN hashing, install `bcrypt` with `python -m pip install bcrypt`; without it, this demo falls back to storing PINs without secure hashing. ElevenLabs support uses `requests`, which is included in `requirements.txt`.
-
-To enable patient audio, add `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE` in the Render service's **Environment** settings, then redeploy. Keep the API key in Render's secret environment settings; never add it to the code or commit it to GitHub. When a clinician generates a share link, the app creates an audio summary and shows a player on the patient page after the PIN is entered. Audio generation requires an active ElevenLabs account and may incur usage charges.
+Patient read-aloud uses the browser's built-in speech synthesis. No API key or audio service is required; available voices and playback support depend on the patient's browser and device.
 
 ## Project structure
 
@@ -128,7 +125,6 @@ To enable patient audio, add `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE` in the 
 └── static/
     ├── clinician_portal.html # Clinician interface
     ├── manuals/               # Saved care-plan JSON files
-    └── uploads/tts/            # Generated audio files
 ```
 
 The SQLite database (`kiwikare_demo.db`) is created in the project folder when the server starts.
@@ -139,7 +135,7 @@ This project is a demonstration, not a production clinical system. Do not enter 
 
 ## AI Assistance
 
-GitHub Copilot was used as a programming assistant to investigate, implement, and document updates to the FastAPI service and portal. This included share-link behavior, the care-instruction preview, patient-side ElevenLabs audio playback, and Render deployment setup. Copilot did not validate clinical guidance; qualified clinicians should review all patient-facing instructions before use.
+GitHub Copilot was used as a programming assistant to investigate, implement, and document updates to the FastAPI service and portal. This included share-link behavior, the care-instruction preview, patient-side browser read-aloud, and Render deployment setup. Copilot did not validate clinical guidance; qualified clinicians should review all patient-facing instructions before use.
 
 ## License
 
