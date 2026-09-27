@@ -95,6 +95,8 @@ Then revisit <http://127.0.0.1:8000/clinician>. To stop the server, click the Te
 
 ## Deploy an open demo on Render
 
+https://kiwikare-demo.onrender.com/clinician
+
 The repository includes a Render Blueprint in `render.yaml`.
 
 1. In Render, choose **New > Blueprint** and connect `rosytiger/kiwikare`.
