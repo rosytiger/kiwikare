@@ -95,11 +95,11 @@ Then revisit <http://127.0.0.1:8000/clinician>. To stop the server, click the Te
 
 ## Configuration and optional services
 
-Set `BASE_URL` before starting the server if patient links should use a public endpoint. It defaults to `http://127.0.0.1:8000`.
+Set `BASE_URL` before starting the server if patient links should use a public endpoint. If unset, links use the host and port receiving the request.
 
 | Variable | Purpose |
 | --- | --- |
-| `BASE_URL` | Public base URL used to create patient links. Defaults to `http://127.0.0.1:8000`. |
+| `BASE_URL` | Optional public base URL used to create patient links. Defaults to the host and port receiving the request. |
 | `ELEVENLABS_API_KEY` | Enables optional text-to-speech summaries. |
 | `ELEVENLABS_VOICE` | ElevenLabs voice ID for text-to-speech. |
 

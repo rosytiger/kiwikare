@@ -11,12 +11,12 @@
     }
     *{box-sizing:border-box}
     body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,system-ui}
-    .header{background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center}
-    .brand{font-size:20px;font-weight:800}
-    .brand-sub{color:rgba(255,255,255,0.9);font-size:13px}
-    .logo {width:72px;height:72px;object-fit:contain;background:transparent;border:0;display:block}
-    .container{max-width:1180px;margin:18px auto;padding:0 18px}
-    .layout{display:grid;grid-template-columns:360px 1fr 320px;gap:18px}
+    .header{background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff;padding:8px 12px;display:flex;justify-content:space-between;align-items:center}
+    .brand{font-size:16px;font-weight:800}
+    .brand-sub{color:rgba(255,255,255,0.9);font-size:11px}
+    .logo {width:42px;height:42px;object-fit:contain;background:transparent;border:0;display:block}
+    .container{max-width:1180px;margin:14px auto;padding:0 8px}
+    .layout{display:grid;grid-template-columns:1.08fr 1fr .96fr;gap:14px}
     .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:0 8px 24px var(--shadow)}
     label{display:block;margin-top:10px;margin-bottom:6px;color:var(--brand);font-weight:700}
     input,select,textarea,button{font:inherit}
@@ -33,7 +33,7 @@
     .preview-box{background:#F4FAFF;border:1px solid #dfeeff;border-radius:10px;padding:10px;margin-top:8px}
     .preview-card{display:flex;gap:12px;align-items:flex-start;padding:10px;border-radius:10px;background:#fff;border:1px solid var(--line);margin-top:8px}
     .icon{width:44px;height:44px;border-radius:10px;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px}
-    @media (max-width:980px){.layout{grid-template-columns:1fr}}
+    @media (max-width:720px){.layout{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
@@ -42,7 +42,7 @@
       <div class="brand">KiwiKare</div>
       <div class="brand-sub">Clinician Portal</div>
     </div>
-    <img src="/static/kiwi_logo_transparent.png?v=2" alt="KiwiKare logo" class="logo" onerror="this.style.display='none'">
+    <img src="/portal-static/kiwi_logo_transparent.png?v=2" alt="KiwiKare logo" class="logo" onerror="this.style.display='none'">
   </header>
 
   <main class="container">
@@ -164,6 +164,20 @@
             </div>
           </div>
           <div class="preview-card">
+            <div class="icon">💊</div>
+            <div>
+              <div style="font-weight:800">Medication</div>
+              <div class="muted" id="preMeds">Medication instructions appear here.</div>
+            </div>
+          </div>
+          <div class="preview-card">
+            <div class="icon">🚶</div>
+            <div>
+              <div style="font-weight:800">Activity</div>
+              <div class="muted" id="preActivity">Activity instructions appear here.</div>
+            </div>
+          </div>
+          <div class="preview-card">
             <div class="icon">⚠️</div>
             <div>
               <div style="font-weight:800">Warnings</div>
@@ -171,7 +185,7 @@
             </div>
           </div>
           <div style="margin-top:14px;text-align:center;font-size:12px;color:var(--muted)">
-            <img src="/static/kiwi_logo_transparent.png?v=2" alt="Kiwi" style="width:72px;height:auto;display:block;margin:8px auto" onerror="this.style.display='none'">
+            <img src="/portal-static/kiwi_logo_transparent.png?v=2" alt="Kiwi" style="width:42px;height:auto;display:block;margin:8px auto" onerror="this.style.display='none'">
             <div>Powered by KiwiKare</div>
           </div>
         </div>
@@ -222,6 +236,8 @@
       document.getElementById('preSummary').textContent = document.getElementById('summaryText').value.trim() || '—';
       document.getElementById('preDiet').textContent = document.getElementById('dietText').value.trim() || '—';
       document.getElementById('preWound').textContent = document.getElementById('woundText').value.trim() || '—';
+      document.getElementById('preMeds').textContent = document.getElementById('medsText').value.trim() || '—';
+      document.getElementById('preActivity').textContent = document.getElementById('activityText').value.trim() || '—';
       document.getElementById('preWarnings').textContent = document.getElementById('warningsText').value.trim() || '—';
     }
 
@@ -248,7 +264,7 @@
       updatePreview();
     }));
 
-    ['patientName','patientDob','summaryText','dietText','woundText','medsText','warningsText'].forEach(id=>{
+    ['patientName','patientDob','summaryText','dietText','woundText','medsText','activityText','warningsText'].forEach(id=>{
       const el = document.getElementById(id);
       if(el) el.addEventListener('input', updatePreview);
     });
@@ -270,12 +286,21 @@
         return null;
       }
 
-      const fd = new FormData();
-      fd.append('manual', JSON.stringify({ title, sections: entries }));
-      const res = await fetch('/api/manuals/create', {method:'POST', body:fd});
-      const json = await res.json();
-      if(!res.ok){ document.getElementById('status').textContent = json.detail || 'Save failed.'; return null; }
-      return json.manual;
+      const status = document.getElementById('status');
+      status.textContent = 'Saving manual...';
+      try {
+        const fd = new FormData();
+        fd.append('manual', JSON.stringify({ title, sections: entries }));
+        const res = await fetch('/api/manuals/create', {method:'POST', body:fd});
+        const json = await res.json().catch(() => ({}));
+        if(!res.ok){ status.textContent = json.detail || 'Save failed.'; return null; }
+        if(!json.manual){ status.textContent = 'Save failed: no manual returned.'; return null; }
+        status.textContent = 'Saved manual: ' + json.manual.title;
+        return json.manual;
+      } catch (error) {
+        status.textContent = 'Could not save manual. Check that the server is running.';
+        return null;
+      }
     }
 
     async function generateCard(){

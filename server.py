@@ -26,6 +26,7 @@ except Exception:
 # ---------- Configuration ----------
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
+PORTAL_STATIC_DIR = STATIC_DIR
 MANUALS_DIR = STATIC_DIR / "manuals"
 UPLOADS_DIR = STATIC_DIR / "uploads"
 TTS_DIR = UPLOADS_DIR / "tts"
@@ -33,8 +34,12 @@ TTS_DIR = UPLOADS_DIR / "tts"
 for d in (STATIC_DIR, MANUALS_DIR, UPLOADS_DIR, TTS_DIR):
     d.mkdir(parents=True, exist_ok=True)
 
-# Use BASE_URL env var if you have a public endpoint; default to local dev
-BASE_URL = os.getenv("BASE_URL", "http://127.0.0.1:8000")
+# Set BASE_URL when links should use a public endpoint; otherwise use the request host.
+BASE_URL = os.getenv("BASE_URL")
+
+def instruction_link(request: Request, token: str) -> str:
+    base_url = (BASE_URL or str(request.base_url)).rstrip("/")
+    return f"{base_url}/instructions/{token}"
 
 # Twilio env vars (optional)
 TWILIO_SID = os.getenv("TWILIO_ACCOUNT_SID")
@@ -51,6 +56,7 @@ DEFAULT_EXPIRES_DAYS = 14
 # ---------- App & static ----------
 app = FastAPI(title="KiwiKare Demo")
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+app.mount("/portal-static", StaticFiles(directory=str(PORTAL_STATIC_DIR)), name="portal-static")
 
 # ---------- Database ----------
 DB_PATH = BASE_DIR / "kiwikare_demo.db"
@@ -236,7 +242,7 @@ class CreateInstructionPayload(BaseModel):
 # ---------- Endpoints ----------
 @app.get("/clinician", response_class=FileResponse)
 def clinician_portal():
-    path = STATIC_DIR / "clinician_portal.html"
+    path = PORTAL_STATIC_DIR / "clinician_portal.html"
     if not path.exists():
         raise HTTPException(status_code=404, detail="clinician_portal.html not found.")
     return FileResponse(path)
@@ -325,7 +331,7 @@ async def share_manual(request: Request):
     )
     conn.commit()
 
-    link = f"{BASE_URL}/instructions/{token}"
+    link = instruction_link(request, token)
 
     sms_text = f"KiwiKare: Your care instructions for {patient_name or 'the patient'} are ready. Open {link}. Use PIN: {pin}. Expires in {DEFAULT_EXPIRES_DAYS} days."
     send_sms(phone, sms_text)
@@ -349,7 +355,7 @@ async def share_manual(request: Request):
     }
 
 @app.post("/api/instructions/create")
-def create_instruction(payload: CreateInstructionPayload):
+def create_instruction(payload: CreateInstructionPayload, request: Request):
     manual = MANUALS.get(payload.manual_id)
     if not manual:
         raise HTTPException(status_code=400, detail="Unknown manual.")
@@ -367,7 +373,7 @@ def create_instruction(payload: CreateInstructionPayload):
         (instruction_id, token, payload.manual_id, payload.clinic_text, payload.phone.strip(), pin_hash, created_at.isoformat(), expires_at.isoformat(), payload.patient_name or "", payload.patient_dob or "")
     )
     conn.commit()
-    link = f"{BASE_URL}/instructions/{token}"
+    link = instruction_link(request, token)
     send_sms(payload.phone, f"KiwiKare: Your care instructions are ready. Open {link}.")
     if pin:
         send_sms(payload.phone, f"KiwiKare: Your access PIN is {pin}.")
